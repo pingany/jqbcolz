@@ -21,6 +21,7 @@ cdef class chunks(object):
     cdef object chunk_cached
     cdef npy_intp nchunks, nchunk_cached, len
     cdef int _iter_count
+    cdef object _mmap
 
     cdef read_chunk(self, nchunk)
     cdef _save(self, nchunk, chunk_)
@@ -42,6 +43,7 @@ cdef class carray:
     cdef object _cparams, _dflt
     cdef object _dtype
     cdef object _safe
+    cdef object _mmap
     cdef public object chunks
     cdef object _rootdir, datadir, metadir, _mode
     cdef object _attrs, iter_exhausted

@@ -20,6 +20,7 @@ import tempfile
 import json
 import datetime
 import threading
+import mmap
 
 import numpy as np
 cimport numpy as np
@@ -127,7 +128,7 @@ cdef extern from "blosc.h":
     void blosc_set_blocksize(size_t blocksize)
     char* blosc_list_compressors()
 
-
+cdef extern int PyObject_AsReadBuffer(object, const void **, Py_ssize_t *)
 
 #----------------------------------------------------------------------------
 
@@ -373,11 +374,11 @@ cdef class chunk:
             # Data comes in an already compressed state inside a Python String
             self.dobject = dobject
             # Set size info for the instance
-            data = PyBytes_AS_STRING(dobject);
+            data = _get_object_buffer(dobject);
             blosc_cbuffer_sizes(data, &nbytes, &cbytes, &blocksize)
         elif dtype_ == 'O':
             # The objects should arrive here already pickled
-            data = PyBytes_AS_STRING(dobject)
+            data = _get_object_buffer(dobject)
             nbytes = PyBytes_GET_SIZE(dobject)
             cbytes, blocksize = self.compress_data(data, 1, nbytes, cparams)
         else:
@@ -497,7 +498,7 @@ cdef class chunk:
         cdef char *dest
 
         result_str = PyBytes_FromStringAndSize(NULL, self.nbytes)
-        src = PyBytes_AS_STRING(self.dobject)
+        src = _get_object_buffer(self.dobject)
         dest = PyBytes_AS_STRING(result_str)
 
         if _get_use_threads():
@@ -530,7 +531,7 @@ cdef class chunk:
             return
 
         # Fill dest with uncompressed data
-        data = PyBytes_AS_STRING(self.dobject)
+        data = _get_object_buffer(self.dobject)
         if bsize == self.nbytes:
             ret = blosc_decompress(data, dest, bsize)
         else:
@@ -696,6 +697,16 @@ cdef decode_blosc_header(buffer_):
             'ctbytes': decode_uint32(buffer_[12:16])}
 
 
+cdef char* _get_object_buffer(_object):
+    cdef void * buf;
+    cdef Py_ssize_t _len;
+    cdef int offset = BLOSCPACK_HEADER_LENGTH
+    if isinstance(_object, mmap.mmap):
+        PyObject_AsReadBuffer(_object, &buf, &_len)
+        return <char*>(buf + offset)
+    else:
+        return PyBytes_AS_STRING(_object)
+
 cdef class chunks(object):
     """Store the different carray chunks in a directory on-disk."""
     property mode:
@@ -717,7 +728,7 @@ cdef class chunks(object):
         def __get__(self):
             return os.path.join(self.rootdir, DATA_DIR)
 
-    def __cinit__(self, rootdir, metainfo=None, _new=False):
+    def __cinit__(self, rootdir, metainfo=None, _new=False, mmap=False):
         cdef ndarray lastchunkarr
         cdef void *decompressed
         cdef void *compressed
@@ -729,6 +740,7 @@ cdef class chunks(object):
         cdef int itemsize, atomsize
 
         self._rootdir = rootdir
+        self._mmap = mmap
         self.nchunks = 0
         self.nchunk_cached = -1  # no chunk cached initially
         self.dtype, self.cparams, self.len, lastchunkarr, self._mode = metainfo
@@ -749,7 +761,7 @@ cdef class chunks(object):
             if leftover:
                 # Fill lastchunk with data on disk
                 scomp = self.read_chunk(self.nchunks)
-                compressed = PyBytes_AS_STRING(scomp)
+                compressed = _get_object_buffer(scomp)
                 ret = blosc_decompress(compressed, lastchunk, chunksize)
                 if ret < 0:
                     raise RuntimeError(
@@ -765,17 +777,24 @@ cdef class chunks(object):
         schunkfile = self._chunk_file_name(nchunk)
         if not os.path.exists(schunkfile):
             raise ValueError("chunkfile %s not found" % schunkfile)
-        with open(schunkfile, 'rb') as schunk:
-            bloscpack_header = schunk.read(BLOSCPACK_HEADER_LENGTH)
-            blosc_header_raw = schunk.read(BLOSC_HEADER_LENGTH)
-            blosc_header = decode_blosc_header(blosc_header_raw)
-            ctbytes = blosc_header['ctbytes']
-            nbytes = blosc_header['nbytes']
-            # seek back BLOSC_HEADER_LENGTH bytes in file relative to current
-            # position
-            schunk.seek(-BLOSC_HEADER_LENGTH, 1)
-            scomp = schunk.read(ctbytes)
-        return scomp
+
+        if self._mmap:
+            fd = os.open(schunkfile, os.O_RDONLY)
+            schunk = mmap.mmap(fd, 0, flags=mmap.MAP_SHARED, prot=mmap.PROT_READ)
+            os.close(fd)
+            return schunk
+        else:
+            with open(schunkfile, 'rb') as schunk:
+                bloscpack_header = schunk.read(BLOSCPACK_HEADER_LENGTH)
+                blosc_header_raw = schunk.read(BLOSC_HEADER_LENGTH)
+                blosc_header = decode_blosc_header(blosc_header_raw)
+                ctbytes = blosc_header['ctbytes']
+                nbytes = blosc_header['nbytes']
+                # seek back BLOSC_HEADER_LENGTH bytes in file relative to current
+                # position
+                schunk.seek(-BLOSC_HEADER_LENGTH, 1)
+                scomp = schunk.read(ctbytes)
+            return scomp
 
     def __iter__(self):
        self._iter_count = 0
@@ -1051,13 +1070,15 @@ cdef class carray:
     def __cinit__(self, object array=None, object cparams=None,
                   object dtype=None, object dflt=None,
                   object expectedlen=None, object chunklen=None,
-                  object rootdir=None, object safe=True, object mode="a"):
+                  object rootdir=None, object safe=True, object mode="a",
+                  object mmap=False):
 
         self._rootdir = rootdir
         if mode not in ('r', 'w', 'a'):
             raise ValueError("mode should be 'r', 'w' or 'a'")
         self._mode = mode
         self._safe = safe
+        self._mmap = mmap
 
         if array is not None:
             self._create_carray(array, cparams, dtype, dflt,
@@ -1208,7 +1229,7 @@ cdef class carray:
             self._mkdirs(rootdir, mode)
             metainfo = (
             dtype, cparams, self.shape[0], lastchunkarr, self._mode)
-            self.chunks = chunks(self._rootdir, metainfo=metainfo, _new=True)
+            self.chunks = chunks(self._rootdir, metainfo=metainfo, _new=True, mmap=self._mmap)
             # We can write the metainfo already
             self._write_meta()
 
@@ -1270,7 +1291,7 @@ cdef class carray:
 
             # Finally, open data directory
             metainfo = (dtype, cparams, shape[0], lastchunkarr, self._mode)
-            self.chunks = chunks(self._rootdir, metainfo=metainfo, _new=False)
+            self.chunks = chunks(self._rootdir, metainfo=metainfo, _new=False, mmap=self._mmap)
         else:
             self.chunks, lastchunkarr[:] = xchunks
 

@@ -109,7 +109,7 @@ def set_nthreads(nthreads):
     return nthreads_old
 
 
-def open(rootdir, mode='a'):
+def open(rootdir, mode='a', mmap=False):
     """
     open(rootdir, mode='a')
 
@@ -135,9 +135,9 @@ def open(rootdir, mode='a'):
     # First try with a carray
     rootsfile = os.path.join(rootdir, ROOTDIRS)
     if os.path.exists(rootsfile):
-        return bcolz.ctable(rootdir=rootdir, mode=mode)
+        return bcolz.ctable(rootdir=rootdir, mode=mode, mmap=mmap)
     else:
-        return bcolz.carray(rootdir=rootdir, mode=mode)
+        return bcolz.carray(rootdir=rootdir, mode=mode, mmap=mmap)
 
 
 def fromiter(iterable, dtype, count, **kwargs):
