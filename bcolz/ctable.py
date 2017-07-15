@@ -51,11 +51,12 @@ def split_string(x):
 class cols(object):
     """Class for accessing the columns on the ctable object."""
 
-    def __init__(self, rootdir, mode):
+    def __init__(self, rootdir, mode, mmap=False):
         self.rootdir = rootdir
         self.mode = mode
         self.names = []
         self._cols = {}
+        self._mmap = mmap
 
     def read_meta_and_open(self):
         """Read the meta-information and initialize structures."""
@@ -68,7 +69,7 @@ class cols(object):
         # Initialize the cols by instantiating the carrays
         for name in self.names:
             dir_ = os.path.join(self.rootdir, name)
-            self._cols[name] = bcolz.carray(rootdir=dir_, mode=self.mode)
+            self._cols[name] = bcolz.carray(rootdir=dir_, mode=self.mode, mmap=self._mmap)
 
     def update_meta(self):
         """Update metainfo about directories on-disk."""
@@ -255,7 +256,7 @@ class ctable(object):
             self.mode = kwargs.setdefault('mode', 'w')
 
         # Setup the columns accessor
-        self.cols = cols(self.rootdir, self.mode)
+        self.cols = cols(self.rootdir, self.mode, mmap=kwargs.get('mmap', False))
         "The ctable columns accessor."
 
         # The length counter of this array
