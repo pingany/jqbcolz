@@ -33,8 +33,8 @@ from numpy cimport (ndarray,
                     )
 import cython
 
-import bcolz
-from bcolz import utils, attrs, array2string
+import jqbcolz
+from jqbcolz import utils, attrs, array2string
 
 from .utils import build_carray
 
@@ -48,7 +48,7 @@ else:
 _KB = 1024
 _MB = 1024 * _KB
 
-# Directories for saving the data and metadata for bcolz persistency
+# Directories for saving the data and metadata for jqbcolz persistency
 DATA_DIR = 'data'
 META_DIR = 'meta'
 SIZES_FILE = 'sizes'
@@ -365,7 +365,7 @@ cdef class chunk:
             itemsize = dtype_.itemsize
         if itemsize > BLOSC_MAX_TYPESIZE:
             raise TypeError(
-                "typesize is %d and bcolz does not currently support data "
+                "typesize is %d and jqbcolz does not currently support data "
                 "types larger than %d bytes" % (itemsize, BLOSC_MAX_TYPESIZE))
         self.itemsize = itemsize
         footprint = 0
@@ -625,8 +625,8 @@ cdef create_bloscpack_header(nchunks=None, format_version=FORMAT_VERSION):
     three are reserved, and in the last eight there is a signed 64 bit little
     endian integer that encodes the number of chunks.
 
-    Currently (bcolz 1.x), version is 1 and nchunks always have a value of 1
-    (this might change in bcolz 2.0).
+    Currently (jqbcolz 1.x), version is 1 and nchunks always have a value of 1
+    (this might change in jqbcolz 2.0).
 
     The value of '-1' for 'nchunks' designates an unknown size and can be
     set by setting 'nchunks' to None.
@@ -1112,7 +1112,7 @@ cdef class carray:
         cparams = data["cparams"]
         cname = cparams['cname'] if 'cname' in cparams else 'blosclz'
         quantize = cparams['quantize'] if 'quantize' in cparams else None
-        cparams = bcolz.cparams(
+        cparams = jqbcolz.cparams(
             clevel=data["cparams"]["clevel"],
             shuffle=data["cparams"]["shuffle"],
             cname=cname,
@@ -1313,7 +1313,7 @@ cdef class carray:
         # A boolean expression (case of fancy indexing)
         elif type(key) is str:
             # Evaluate
-            result = bcolz.eval(key)
+            result = jqbcolz.eval(key)
             if result.dtype.type != np.bool_:
                 raise IndexError("only boolean expressions supported")
             if len(result) != self.len:

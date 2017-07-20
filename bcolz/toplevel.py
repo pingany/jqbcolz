@@ -19,39 +19,39 @@ import itertools as it
 from pkg_resources import parse_version
 
 import numpy as np
-import bcolz
-from bcolz.ctable import ROOTDIRS
+import jqbcolz
+from jqbcolz.ctable import ROOTDIRS
 from .py2help import xrange, _inttypes
 
 
 def print_versions():
-    """Print all the versions of packages that bcolz relies on."""
+    """Print all the versions of packages that jqbcolz relies on."""
     print("-=" * 38)
-    print("bcolz version:     %s" % bcolz.__version__)
-    if bcolz.git_description:
-        print("bcolz git info:    %s" % bcolz.git_description)
+    print("jqbcolz version:     %s" % jqbcolz.__version__)
+    if jqbcolz.git_description:
+        print("jqbcolz git info:    %s" % jqbcolz.git_description)
     print("NumPy version:     %s" % np.__version__)
-    tinfo = bcolz.blosc_version()
-    blosc_cnames = bcolz.blosc_compressor_list()
+    tinfo = jqbcolz.blosc_version()
+    blosc_cnames = jqbcolz.blosc_compressor_list()
     print("Blosc version:     %s (%s)" % (tinfo[0], tinfo[1]))
     print("Blosc compressors: %s" % (blosc_cnames,))
-    if bcolz.numexpr_here:
-        print("Numexpr version:   %s" % bcolz.numexpr.__version__)
+    if jqbcolz.numexpr_here:
+        print("Numexpr version:   %s" % jqbcolz.numexpr.__version__)
     else:
         print("Numexpr version:   not available "
-              "(version >= %s not detected)" % bcolz.min_numexpr_version)
-    if bcolz.dask_here:
-        print("Dask version:      %s" % bcolz.dask.__version__)
+              "(version >= %s not detected)" % jqbcolz.min_numexpr_version)
+    if jqbcolz.dask_here:
+        print("Dask version:      %s" % jqbcolz.dask.__version__)
     else:
         print("Dask version:   not available "
-              "(version >= %s not detected)" % bcolz.min_dask_version)
+              "(version >= %s not detected)" % jqbcolz.min_dask_version)
 
     print("Python version:    %s" % sys.version)
     if os.name == "posix":
         (sysname, nodename, release, version, machine) = os.uname()
         print("Platform:          %s-%s" % (sys.platform, machine))
     print("Byte-ordering:     %s" % sys.byteorder)
-    print("Detected cores:    %s" % bcolz.detect_number_of_cores())
+    print("Detected cores:    %s" % jqbcolz.detect_number_of_cores())
     print("-=" * 38)
 
 
@@ -83,7 +83,7 @@ def set_nthreads(nthreads):
     """
     set_nthreads(nthreads)
 
-    Sets the number of threads to be used during bcolz operation.
+    Sets the number of threads to be used during jqbcolz operation.
 
     This affects to both Blosc and Numexpr (if available).  If you want to
     change this number only for Blosc, use `blosc_set_nthreads` instead.
@@ -91,7 +91,7 @@ def set_nthreads(nthreads):
     Parameters
     ----------
     nthreads : int
-        The number of threads to be used during bcolz operation.
+        The number of threads to be used during jqbcolz operation.
 
     Returns
     -------
@@ -103,9 +103,9 @@ def set_nthreads(nthreads):
     blosc_set_nthreads
 
     """
-    nthreads_old = bcolz.blosc_set_nthreads(nthreads)
-    if bcolz.numexpr_here:
-        bcolz.numexpr.set_num_threads(nthreads)
+    nthreads_old = jqbcolz.blosc_set_nthreads(nthreads)
+    if jqbcolz.numexpr_here:
+        jqbcolz.numexpr.set_num_threads(nthreads)
     return nthreads_old
 
 
@@ -135,9 +135,9 @@ def open(rootdir, mode='a', mmap=False):
     # First try with a carray
     rootsfile = os.path.join(rootdir, ROOTDIRS)
     if os.path.exists(rootsfile):
-        return bcolz.ctable(rootdir=rootdir, mode=mode, mmap=mmap)
+        return jqbcolz.ctable(rootdir=rootdir, mode=mode, mmap=mmap)
     else:
-        return bcolz.carray(rootdir=rootdir, mode=mode, mmap=mmap)
+        return jqbcolz.carray(rootdir=rootdir, mode=mode, mmap=mmap)
 
 
 def fromiter(iterable, dtype, count, **kwargs):
@@ -188,14 +188,14 @@ def fromiter(iterable, dtype, count, **kwargs):
     dtype = np.dtype(dtype)
     if dtype.kind == "V":
         # A ctable
-        obj = bcolz.ctable(np.array([], dtype=dtype),
+        obj = jqbcolz.ctable(np.array([], dtype=dtype),
                            expectedlen=expectedlen,
                            **kwargs)
         chunklen = sum(obj.cols[name].chunklen
                        for name in obj.names) // len(obj.names)
     else:
         # A carray
-        obj = bcolz.carray(np.array([], dtype=dtype),
+        obj = jqbcolz.carray(np.array([], dtype=dtype),
                            expectedlen=expectedlen,
                            **kwargs)
         chunklen = obj.chunklen
@@ -244,7 +244,7 @@ def fill(shape, dflt=None, dtype=np.float, **kwargs):
 
     def fill_helper(obj, dtype=None, length=None):
         """Helper function to fill a carray with default values"""
-        assert isinstance(obj, bcolz.carray)
+        assert isinstance(obj, jqbcolz.carray)
         assert dtype is not None
         assert length is not None
         if type(length) is float:
@@ -278,15 +278,15 @@ def fill(shape, dflt=None, dtype=np.float, **kwargs):
         base_rootdir = kwargs.pop('rootdir', None)
         for name, col_dype in dtype.descr:
             dflt = np.zeros((), dtype=col_dype)
-            ca = bcolz.carray([], dtype=col_dype, dflt=dflt,
+            ca = jqbcolz.carray([], dtype=col_dype, dflt=dflt,
                               expectedlen=expectedlen, **kwargs)
             fill_helper(ca, dtype=ca.dtype, length=length)
             list_ca.append(ca)
         # bring rootdir back, ctable should live either on-disk or in-memory
         kwargs['rootdir'] = base_rootdir
-        obj = bcolz.ctable(list_ca, names=dtype.names, **kwargs)
+        obj = jqbcolz.ctable(list_ca, names=dtype.names, **kwargs)
     else:
-        obj = bcolz.carray([], dtype=dtype, dflt=dflt, expectedlen=expectedlen,
+        obj = jqbcolz.carray([], dtype=dtype, dflt=dflt, expectedlen=expectedlen,
                            **kwargs)
         fill_helper(obj, dtype=dtype, length=length)
 
@@ -418,7 +418,7 @@ def arange(start=None, stop=None, step=None, dtype=None, **kwargs):
     if dtype.kind == "V":
         raise ValueError("arange does not support ctables yet.")
     else:
-        obj = bcolz.carray(np.array([], dtype=dtype),
+        obj = jqbcolz.carray(np.array([], dtype=dtype),
                            expectedlen=expectedlen,
                            **kwargs)
         chunklen = obj.chunklen
@@ -446,7 +446,7 @@ def iterblocks(cobj, blen=None, start=0, stop=None):
     Parameters
     ----------
     cobj : carray/ctable object
-        The bcolz object to be iterated over.
+        The jqbcolz object to be iterated over.
     blen : int
         The length of the block that is returned.  The default is the
         chunklen, or for a ctable, the minimum of the different column
@@ -471,7 +471,7 @@ def iterblocks(cobj, blen=None, start=0, stop=None):
 
     if stop is None or stop > len(cobj):
         stop = len(cobj)
-    if isinstance(cobj, bcolz.ctable):
+    if isinstance(cobj, jqbcolz.ctable):
         # A ctable object
         if blen is None:
             # Get the minimum chunklen for every column
@@ -533,10 +533,10 @@ def walk(dir, classname=None, mode='a'):
     for node in glob.glob(names):
         if os.path.isdir(node):
             try:
-                obj = bcolz.carray(rootdir=node, mode=mode)
+                obj = jqbcolz.carray(rootdir=node, mode=mode)
             except:
                 try:
-                    obj = bcolz.ctable(rootdir=node, mode=mode)
+                    obj = jqbcolz.ctable(rootdir=node, mode=mode)
                 except:
                     obj = None
                     dirs.append(node)
@@ -564,8 +564,8 @@ class cparams(object):
         The compression level.
     shuffle : int
         The shuffle filter to be activated.  Allowed values are
-        bcolz.NOSHUFFLE (0), bcolz.SHUFFLE (1) and bcolz.BITSHUFFLE (2).  The
-        default is bcolz.SHUFFLE.
+        jqbcolz.NOSHUFFLE (0), jqbcolz.SHUFFLE (1) and jqbcolz.BITSHUFFLE (2).  The
+        default is jqbcolz.SHUFFLE.
     cname : string ('blosclz', 'lz4', 'lz4hc', 'snappy', 'zlib')
         Select the compressor to use inside Blosc.
     quantize : int (number of significant digits)
@@ -613,15 +613,15 @@ class cparams(object):
         if shuffle is not None:
             if not isinstance(shuffle, (bool, int)):
                 raise ValueError("`shuffle` must be an int.")
-            if shuffle not in [bcolz.NOSHUFFLE, bcolz.SHUFFLE, bcolz.BITSHUFFLE]:
+            if shuffle not in [jqbcolz.NOSHUFFLE, jqbcolz.SHUFFLE, jqbcolz.BITSHUFFLE]:
                 raise ValueError("`shuffle` value not allowed.")
-            if (shuffle == bcolz.BITSHUFFLE and
-                parse_version(bcolz.blosc_version()[0]) < parse_version("1.8.0")):
+            if (shuffle == jqbcolz.BITSHUFFLE and
+                parse_version(jqbcolz.blosc_version()[0]) < parse_version("1.8.0")):
                 raise ValueError("You need C-Blosc 1.8.0 or higher for using "
                                  "BITSHUFFLE.")
         # Store the cname as bytes object internally
         if cname is not None:
-            list_cnames = bcolz.blosc_compressor_list()
+            list_cnames = jqbcolz.blosc_compressor_list()
             if cname not in list_cnames:
                 raise ValueError(
                     "Compressor '%s' is not available in this build" % cname)
@@ -642,8 +642,8 @@ class cparams(object):
             The compression level.
         shuffle : int
             The shuffle filter to be activated.  Allowed values are
-            bcolz.NOSHUFFLE (0), bcolz.SHUFFLE (1) and bcolz.BITSHUFFLE (2).
-            The default is bcolz.SHUFFLE.
+            jqbcolz.NOSHUFFLE (0), jqbcolz.SHUFFLE (1) and jqbcolz.BITSHUFFLE (2).
+            The default is jqbcolz.SHUFFLE.
         cname : string ('blosclz', 'lz4', 'lz4hc', 'snappy', 'zlib')
             Select the compressor to use inside Blosc.
         quantize : int (number of significant digits)
@@ -655,12 +655,12 @@ class cparams(object):
 
         If this method is not called, the defaults will be set as in
         defaults.py:
-        (``{clevel=5, shuffle=bcolz.SHUFFLE, cname='lz4', quantize=None}``).
+        (``{clevel=5, shuffle=jqbcolz.SHUFFLE, cname='lz4', quantize=None}``).
 
         """
         clevel, shuffle, cname, quantize = cparams._checkparams(
             clevel, shuffle, cname, quantize)
-        dflts = bcolz.defaults.cparams
+        dflts = jqbcolz.defaults.cparams
         if clevel is not None:
             dflts['clevel'] = clevel
         if shuffle is not None:
@@ -673,7 +673,7 @@ class cparams(object):
     def __init__(self, clevel=None, shuffle=None, cname=None, quantize=None):
         clevel, shuffle, cname, quantize = cparams._checkparams(
             clevel, shuffle, cname, quantize)
-        dflts = bcolz.defaults.cparams
+        dflts = jqbcolz.defaults.cparams
         self._clevel = dflts['clevel'] if clevel is None else clevel
         self._shuffle = dflts['shuffle'] if shuffle is None else shuffle
         self._cname = dflts['cname'] if cname is None else cname

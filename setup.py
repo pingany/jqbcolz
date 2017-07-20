@@ -82,11 +82,11 @@ LFLAGS = os.environ.get('LFLAGS', '').split()
 BLOSC_DIR = os.environ.get('BLOSC_DIR', '')
 
 # Sources & libraries
-inc_dirs = ['bcolz']
+inc_dirs = ['jqbcolz']
 lib_dirs = []
 libs = []
 def_macros = []
-sources = ['bcolz/carray_ext.pyx']
+sources = ['jqbcolz/carray_ext.pyx']
 
 optional_libs = []
 
@@ -157,19 +157,19 @@ if os.getenv('TRAVIS') and os.getenv('CI') and v[0:2] == (2, 7):
     LFLAGS.append("-lgcov")
 
 setup(
-    name="bcolz",
+    name="jqbcolz",
     use_scm_version={
         'version_scheme': 'guess-next-dev',
         'local_scheme': 'dirty-tag',
-        'write_to': 'bcolz/version.py'
+        'write_to': 'jqbcolz/version.py'
     },
     description='columnar and compressed data containers.',
     long_description="""\
 
-bcolz provides columnar and compressed data containers.  Column
+jqbcolz provides columnar and compressed data containers.  Column
 storage allows for efficiently querying tables with a large number of
 columns.  It also allows for cheap addition and removal of column.  In
-addition, bcolz objects are compressed by default for reducing
+addition, jqbcolz objects are compressed by default for reducing
 memory/disk I/O needs.  The compression process is carried out
 internally by Blosc, a high-performance compressor that is optimized
 for binary data.
@@ -197,12 +197,12 @@ for binary data.
     author_email='francesc@blosc.org',
     maintainer='Francesc Alted',
     maintainer_email='francesc@blosc.org',
-    url='https://github.com/Blosc/bcolz',
+    url='https://github.com/Blosc/jqbcolz',
     license='BSD',
     platforms=['any'],
     ext_modules=[
         Extension(
-            'bcolz.carray_ext',
+            'jqbcolz.carray_ext',
             include_dirs=inc_dirs,
             define_macros=def_macros,
             sources=sources,
@@ -230,6 +230,6 @@ for binary data.
         test=tests_require
     ),
     packages=find_packages(),
-    package_data={'bcolz': ['carray_ext.pxd']},
+    package_data={'jqbcolz': ['carray_ext.pxd']},
     cmdclass=LazyCommandClass(),
 )
