@@ -24,7 +24,6 @@ cdef class chunks(object):
     cdef object _mmap
 
     cdef read_chunk(self, nchunk)
-    cdef _save(self, nchunk, chunk_)
     cdef _chunk_file_name(self, nchunk)
 
 cdef class carray:
@@ -52,7 +51,6 @@ cdef class carray:
     cdef ndarray blockcache
     cdef char *datacache
 
-    cdef void bool_update(self, boolarr, value)
     cdef int getitem_cache(self, npy_intp pos, char *dest)
     cdef reset_iter_sentinels(self)
     cdef int check_zeros(self, object barr)
