@@ -729,11 +729,9 @@ cdef class chunks(object):
             return os.path.join(self.rootdir, DATA_DIR)
 
     def __cinit__(self, rootdir, metainfo=None, _new=False, mmap=False):
-        cdef ndarray lastchunkarr
         cdef void *decompressed
         cdef void *compressed
         cdef int leftover
-        cdef char *lastchunk
         cdef size_t chunksize
         cdef object scomp
         cdef int ret
@@ -744,7 +742,7 @@ cdef class chunks(object):
         self._mmap = mmap
         self.nchunks = 0
         self.nchunk_cached = -1  # no chunk cached initially
-        self.dtype, self.cparams, self.len, lastchunkarr, self._mode, chunklen = metainfo
+        self.dtype, self.cparams, self.len, self._mode, chunklen = metainfo
         atomsize = self.dtype.itemsize
         itemsize = self.dtype.base.itemsize
 
@@ -757,17 +755,7 @@ cdef class chunks(object):
         if not _new and self.dtype.char != 'O':
             self.nchunks = cython.cdiv(self.len, chunklen)
             chunksize = chunklen * atomsize
-            lastchunk = lastchunkarr.data
             leftover = (self.len % chunklen) * atomsize
-            if leftover:
-                # Fill lastchunk with data on disk
-                scomp = self.read_chunk(self.nchunks)
-                compressed = _get_object_buffer(scomp)
-                ret = blosc_decompress(compressed, lastchunk, chunksize)
-                if ret < 0:
-                    raise RuntimeError(
-                        "error decompressing the last chunk (error code: "
-                        "%d)" % ret)
 
     cdef _chunk_file_name(self, nchunk):
         """ Determine the name of a chunk file. """
@@ -1050,7 +1038,6 @@ cdef class carray:
     def _open_carray(self, shape, cparams, dtype, dflt,
                     expectedlen, cbytes, chunklen, xchunks=None):
         """Open an existing array."""
-        cdef ndarray lastchunkarr
         cdef object array_, _dflt
         cdef npy_intp calen
 
@@ -1074,12 +1061,6 @@ cdef class carray:
         self._dflt = dflt
         self.expectedlen = expectedlen
 
-        # Book memory for last chunk (uncompressed)
-        # Use np.zeros here because they compress better
-        lastchunkarr = np.zeros(dtype=dtype, shape=(chunklen,))
-        self.lastchunk = lastchunkarr.data
-        self.lastchunkarr = lastchunkarr
-
         if xchunks is None:
             # No chunks container, so read meta info from disk
             # Check rootdir hierarchy
@@ -1093,10 +1074,10 @@ cdef class carray:
                 raise IOError("meta directory does not exist")
 
             # Finally, open data directory
-            metainfo = (dtype, cparams, shape[0], lastchunkarr, self._mode, chunklen)
+            metainfo = (dtype, cparams, shape[0], self._mode, chunklen)
             self.chunks = chunks(self._rootdir, metainfo=metainfo, _new=False, mmap=self._mmap)
         else:
-            self.chunks, lastchunkarr[:] = xchunks
+            raise NotImplementedError('xchunks not supported now')
 
         # Update some counters
         calen = shape[0]  # the length ot the carray
