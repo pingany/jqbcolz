@@ -1172,12 +1172,6 @@ cdef class carray:
         nchunk = <npy_intp> cython.cdiv(pos, chunklen)
         pos -= nchunk * chunklen
 
-        # Check whether pos is in the last chunk
-        if nchunk == nchunks and self.leftover:
-            posinbytes = (pos % chunklen) * atomsize
-            memcpy(dest, self.lastchunk + posinbytes, atomsize)
-            return 1
-
         # Locate the *block* inside the chunk
         chunk_ = self.chunks[nchunk]
         blocksize = chunk_.blocksize
@@ -1379,10 +1373,7 @@ cdef class carray:
                                              step)
             if blen == 0:
                 continue
-            # Get the data chunk and assign it to result array
-            if nchunk == nchunks - 1 and self.leftover:
-                arr[nwrow:nwrow + blen] = self.lastchunkarr[startb:stopb:step]
-            else:
+            if 1:
                 if step > 1:
                     arr[nwrow:nwrow + blen] = self.chunks[nchunk][
                                               startb:stopb:step]
@@ -1429,10 +1420,7 @@ cdef class carray:
             cblen = stopb - startb
             if cblen == 0:
                 continue
-            # Get the data chunk and assign it to result array
-            if nchunk == nchunks and self.leftover:
-                out[nwrow:nwrow + cblen] = self.lastchunkarr[startb:stopb]
-            else:
+            if 1:
                 chunk_ = self.chunks[nchunk]
                 chunk_._getitem(startb, stopb,
                                 out.data + nwrow * self.atomsize)
