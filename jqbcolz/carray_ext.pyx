@@ -1177,9 +1177,11 @@ cdef class carray:
             return 1
 
         # No luck. Read a complete block.
+        # this_chunklen: length of chunk_
+        this_chunklen = <npy_intp> cython.cdiv(chunk_.nbytes, atomsize)
         extent = blocklen
-        if offset + blocklen > chunklen:
-            extent = chunklen % blocklen
+        if offset + blocklen > this_chunklen:
+            extent = this_chunklen % blocklen
         chunk_._getitem(offset, offset + extent, self.datacache)
         # Copy the interesting bits to dest
         memcpy(dest, self.datacache + posinbytes, atomsize)
