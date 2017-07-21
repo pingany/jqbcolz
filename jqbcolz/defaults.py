@@ -6,13 +6,13 @@
 #
 ########################################################################
 
-"""Defaults for different bcolz parameters.
+"""Defaults for different jqbcolz parameters.
 """
 
 from __future__ import absolute_import
 
 from contextlib import contextmanager
-import bcolz
+import jqbcolz
 
 
 class Defaults(object):
@@ -22,7 +22,7 @@ class Defaults(object):
         self.choices = {}
 
         # Choices setup
-        self.choices['out_flavor'] = ("bcolz", "carray", "numpy")
+        self.choices['out_flavor'] = ("jqbcolz", "carray", "numpy")
         self.choices['vm'] = ("numexpr", "python", "dask")
 
     def check_choices(self, name, value):
@@ -32,7 +32,7 @@ class Defaults(object):
 
     def check_cparams(self, value):
         entries = ['clevel', 'shuffle', 'cname', 'quantize']
-        if isinstance(value, bcolz.cparams):
+        if isinstance(value, jqbcolz.cparams):
             value = dict((e, getattr(value, e)) for e in entries)
         if not isinstance(value, dict):
             raise ValueError(
@@ -42,7 +42,7 @@ class Defaults(object):
             raise ValueError(
                 "The dictionary must have the next entries: %s" % entries)
         # Return a dictionary with the proper defaults
-        return dict(zip(entries, bcolz.cparams._checkparams(**value)))
+        return dict(zip(entries, jqbcolz.cparams._checkparams(**value)))
 
     #
     # Properties start here...
@@ -55,11 +55,11 @@ class Defaults(object):
     @vm.setter
     def vm(self, value):
         self.check_choices('vm', value)
-        if value == "numexpr" and not bcolz.numexpr_here:
+        if value == "numexpr" and not jqbcolz.numexpr_here:
             raise ValueError(
                 "cannot use `numexpr` virtual machine "
                 "(minimum required version is probably not installed)")
-        elif value == "dask" and not bcolz.dask_here:
+        elif value == "dask" and not jqbcolz.dask_here:
             raise ValueError(
                 "cannot use `dask` virtual machine "
                 "(minimum required version is probably not installed)")
@@ -94,15 +94,15 @@ defaults = Defaults()
 
 # Default values start here...
 
-defaults.out_flavor = "bcolz"
-"""The flavor for the output object in `eval()`.  It can be 'bcolz'
-or 'numpy'.  Default is 'bcolz'.
+defaults.out_flavor = "jqbcolz"
+"""The flavor for the output object in `eval()`.  It can be 'jqbcolz'
+or 'numpy'.  Default is 'jqbcolz'.
 
 """
 
-if bcolz.numexpr_here:
+if jqbcolz.numexpr_here:
     defaults.vm = "numexpr"
-elif bcolz.dask_here:
+elif jqbcolz.dask_here:
     defaults.vm = "dask"
 else:
     defaults.vm = "python"
@@ -113,7 +113,7 @@ these are installed, then the 'python' interpreter is used.
 
 """
 
-defaults.cparams = {'clevel': 5, 'shuffle': bcolz.SHUFFLE,
+defaults.cparams = {'clevel': 5, 'shuffle': jqbcolz.SHUFFLE,
                     'cname': 'lz4', 'quantize': 0}
 """The defaults for parameters used in compression.  You can change
 them more comfortably by using the `cparams.setdefaults()` method.

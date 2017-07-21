@@ -159,7 +159,7 @@ def build_carray(array, rootdir):
     Pickling functions can't be in pyx files.  Putting this tiny helper
     function here instead.
     """
-    from bcolz import carray
+    from jqbcolz import carray
     if rootdir:
         return carray(rootdir=rootdir)
     else:

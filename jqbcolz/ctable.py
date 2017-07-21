@@ -18,8 +18,8 @@ import shutil
 import sys
 
 import numpy as np
-import bcolz
-from bcolz import utils, attrs, array2string
+import jqbcolz
+from jqbcolz import utils, attrs, array2string
 from .py2help import _inttypes, _strtypes, imap, izip, xrange
 
 _inttypes += (np.integer,)
@@ -69,7 +69,7 @@ class cols(object):
         # Initialize the cols by instantiating the carrays
         for name in self.names:
             dir_ = os.path.join(self.rootdir, name)
-            self._cols[name] = bcolz.carray(rootdir=dir_, mode=self.mode, mmap=self._mmap)
+            self._cols[name] = jqbcolz.carray(rootdir=dir_, mode=self.mode, mmap=self._mmap)
 
     def update_meta(self):
         """Update metainfo about directories on-disk."""
@@ -89,7 +89,7 @@ class cols(object):
             raise ValueError(
                 "new column length is inconsistent with ctable")
         dtype = None
-        cparams = bcolz.defaults.cparams
+        cparams = jqbcolz.defaults.cparams
         if name in self.names:
             # Column already exists.  Overwrite it, but keep the same dtype
             # and cparams than the previous column.
@@ -98,10 +98,10 @@ class cols(object):
         else:
             self.names.append(name)
         # All columns should be a carray
-        if type(carray) != bcolz.carray:
+        if type(carray) != jqbcolz.carray:
             try:
                 rd = os.path.join(self.rootdir, name) if self.rootdir else None
-                carray = bcolz.carray(carray, rootdir=rd, mode=self.mode,
+                carray = jqbcolz.carray(carray, rootdir=rd, mode=self.mode,
                                       dtype=dtype, cparams=cparams)
             except:
                 raise ValueError(
@@ -227,7 +227,7 @@ class ctable(object):
     def __init__(self, columns=None, names=None, **kwargs):
 
         # Important optional params
-        self._cparams = kwargs.get('cparams', bcolz.cparams())
+        self._cparams = kwargs.get('cparams', jqbcolz.cparams())
         self.rootdir = kwargs.get('rootdir', None)
         if self.rootdir is not None:
             self.auto_flush = kwargs.pop('auto_flush', True)
@@ -308,7 +308,7 @@ class ctable(object):
         # Guess the kind of columns input
         calist, nalist, ratype = False, False, False
         if type(columns) in (tuple, list):
-            calist = all(isinstance(v, bcolz.carray) for v in columns)
+            calist = all(isinstance(v, jqbcolz.carray) for v in columns)
             nalist = all(isinstance(v, np.ndarray) for v in columns)
         elif isinstance(columns, np.ndarray):
             ratype = hasattr(columns.dtype, "names")
@@ -334,12 +334,12 @@ class ctable(object):
                 if column.dtype == np.void:
                     raise ValueError(
                         "`columns` elements cannot be of type void")
-                column = bcolz.carray(column, **kwargs)
+                column = jqbcolz.carray(column, **kwargs)
             elif ratype:
-                column = bcolz.carray(columns[name], **kwargs)
+                column = jqbcolz.carray(columns[name], **kwargs)
             else:
                 # Try to convert from a sequence of columns
-                column = bcolz.carray(columns[i], **kwargs)
+                column = jqbcolz.carray(columns[i], **kwargs)
             self.cols[name] = column
             if clen >= 0 and clen != len(column):
                 if self.rootdir:
@@ -395,7 +395,7 @@ class ctable(object):
         # Guess the kind of cols input
         calist, nalist, sclist, ratype = False, False, False, False
         if type(cols) in (tuple, list):
-            calist = all(isinstance(v, bcolz.carray) for v in cols)
+            calist = all(isinstance(v, jqbcolz.carray) for v in cols)
             nalist = all(isinstance(v, np.ndarray) for v in cols)
             if not (calist or nalist):
                 # Try with a scalar list
@@ -405,7 +405,7 @@ class ctable(object):
         elif isinstance(cols, np.void):
             ratype = hasattr(cols.dtype, "names")
             sclist = True
-        elif isinstance(cols, bcolz.ctable):
+        elif isinstance(cols, jqbcolz.ctable):
             # Convert into a list of carrays
             cols = [cols[name] for name in self.names]
             calist = True
@@ -531,7 +531,7 @@ class ctable(object):
 
         kwargs.setdefault('cparams', self.cparams)
 
-        if (isinstance(newcol, bcolz.carray) and
+        if (isinstance(newcol, jqbcolz.carray) and
             self.rootdir is not None and
             newcol.rootdir is not None):
             # a special case, where you have a disk-based carray is inserted in a disk-based ctable
@@ -540,11 +540,11 @@ class ctable(object):
                 newcol.rootdir = col_rootdir
             else:  # copy the the carray
                 newcol = newcol.copy(rootdir=col_rootdir)
-        elif isinstance(newcol, (np.ndarray, bcolz.carray)):
-            newcol = bcolz.carray(newcol, **kwargs)
+        elif isinstance(newcol, (np.ndarray, jqbcolz.carray)):
+            newcol = jqbcolz.carray(newcol, **kwargs)
         elif type(newcol) in (list, tuple):
-            newcol = bcolz.carray(newcol, **kwargs)
-        elif type(newcol) != bcolz.carray:
+            newcol = jqbcolz.carray(newcol, **kwargs)
+        elif type(newcol) != jqbcolz.carray:
             raise ValueError(
                 """`newcol` type not supported""")
 
@@ -663,14 +663,14 @@ class ctable(object):
         Notes
         -----
         The 'object' dtype will be converted into a 'S'tring type, if possible.
-        This allows for much better storage savings in bcolz.
+        This allows for much better storage savings in jqbcolz.
 
         See Also
         --------
         ctable.todataframe
 
         """
-        if bcolz.pandas_here:
+        if jqbcolz.pandas_here:
             import pandas as pd
         else:
             raise ValueError("you need pandas to use this functionality")
@@ -694,13 +694,13 @@ class ctable(object):
                 inferred_type = pd.lib.infer_dtype(vals)
                 if inferred_type == 'unicode':
                     maxitemsize = pd.lib.max_len_string_array(vals)
-                    col = bcolz.carray(vals,
+                    col = jqbcolz.carray(vals,
                                        dtype='U%d' % maxitemsize, **ckwargs)
                 elif inferred_type == 'string':
                     maxitemsize = pd.lib.max_len_string_array(vals)
                     # In Python 3 strings should be represented as Unicode
                     dtype = "U" if sys.version_info >= (3, 0) else "S"
-                    col = bcolz.carray(vals, dtype='%s%d' %
+                    col = jqbcolz.carray(vals, dtype='%s%d' %
                                        (dtype, maxitemsize), **ckwargs)
                 else:
                     col = vals
@@ -735,7 +735,7 @@ class ctable(object):
         ctable.tohdf5
 
         """
-        if bcolz.tables_here:
+        if jqbcolz.tables_here:
             import tables as tb
         else:
             raise ValueError("you need PyTables to use this functionality")
@@ -791,7 +791,7 @@ class ctable(object):
         ctable.fromdataframe
 
         """
-        if bcolz.pandas_here:
+        if jqbcolz.pandas_here:
             import pandas as pd
         else:
             raise ValueError("you need pandas to use this functionality")
@@ -822,7 +822,7 @@ class ctable(object):
             The mode to open the PyTables file.  Default is 'w'rite mode.
         cparams : cparams object
             The compression parameters.  The defaults are the same than for
-            the current bcolz environment.
+            the current jqbcolz environment.
         cname : string
             Any of the compressors supported by PyTables (e.g. 'zlib').  The
             default is to use 'blosc' as meta-compressor in combination with
@@ -833,7 +833,7 @@ class ctable(object):
         ctable.fromhdf5
 
         """
-        if bcolz.tables_here:
+        if jqbcolz.tables_here:
             import tables as tb
         else:
             raise ValueError("you need PyTables to use this functionality")
@@ -842,7 +842,7 @@ class ctable(object):
             raise IOError("path '%s' already exists" % filepath)
 
         f = tb.open_file(filepath, mode=mode)
-        cparams = cparams if cparams is not None else bcolz.defaults.cparams
+        cparams = cparams if cparams is not None else jqbcolz.defaults.cparams
         cname = cname if cname is not None else "blosc:"+cparams['cname']
         filters = tb.Filters(complevel=cparams['clevel'],
                              shuffle=cparams['clevel'],
@@ -853,7 +853,7 @@ class ctable(object):
         for key, val in self.attrs:
             t.attrs[key] = val
         # Copy the data
-        for block in bcolz.iterblocks(self):
+        for block in jqbcolz.iterblocks(self):
             t.append(block)
         f.close()
 
@@ -988,8 +988,8 @@ class ctable(object):
         skip : int
             An initial number of elements to skip.  The default is 0.
         out_flavor : string
-            The flavor for the `out` object.  It can be 'bcolz' or 'numpy'.
-            If None, the value is get from `bcolz.defaults.out_flavor`.
+            The flavor for the `out` object.  It can be 'jqbcolz' or 'numpy'.
+            If None, the value is get from `jqbcolz.defaults.out_flavor`.
         user_dict : dict
             An user-provided dictionary where the variables in expression
             can be found by name.
@@ -1002,8 +1002,8 @@ class ctable(object):
 
         Returns
         -------
-        out : bcolz or numpy object
-            The outcome of the expression.  In case out_flavor='bcolz', you
+        out : jqbcolz or numpy object
+            The outcome of the expression.  In case out_flavor='jqbcolz', you
             can adjust the properties of this object by passing any additional
             arguments supported by the carray constructor in `kwargs`.
 
@@ -1013,23 +1013,23 @@ class ctable(object):
 
         """
         if out_flavor is None:
-            out_flavor = bcolz.defaults.out_flavor
+            out_flavor = jqbcolz.defaults.out_flavor
 
         if out_flavor == "numpy":
             it = self.whereblocks(expression, len(self), outcols, limit, skip,
                                   user_dict=self._ud(user_dict), vm=vm)
             return next(it)
-        elif out_flavor in ("bcolz", "carray"):
+        elif out_flavor in ("jqbcolz", "carray"):
             dtype = self._dtype_fromoutcols(outcols)
             it = self.where(expression, outcols, limit, skip,
                             out_flavor=tuple, user_dict=self._ud(user_dict),
                             vm=vm)
-            ct = bcolz.fromiter(it, dtype, count=-1, **kwargs)
+            ct = jqbcolz.fromiter(it, dtype, count=-1, **kwargs)
             ct.flush()
             return ct
         else:
             raise ValueError(
-                "`out_flavor` can only take 'bcolz' or 'numpy values")
+                "`out_flavor` can only take 'jqbcolz' or 'numpy values")
 
 
     def whereblocks(self, expression, blen=None, outcols=None, limit=None,
@@ -1071,7 +1071,7 @@ class ctable(object):
 
         See Also
         --------
-        See :py:func:`<bcolz.toplevel.iterblocks>` in toplevel functions.
+        See :py:func:`<jqbcolz.toplevel.iterblocks>` in toplevel functions.
 
         """
 
@@ -1361,7 +1361,7 @@ class ctable(object):
 
         Returns
         -------
-        out : bcolz object
+        out : jqbcolz object
             The outcome of the expression.  You can tailor the
             properties of this object by passing additional arguments
             supported by the carray constructor in `kwargs`.
@@ -1373,7 +1373,7 @@ class ctable(object):
         """
         # Call top-level eval with cols, locals and gloabls as user_dict
         user_dict = kwargs.pop('user_dict', {})
-        return bcolz.eval(expression, user_dict=self._ud(user_dict), **kwargs)
+        return jqbcolz.eval(expression, user_dict=self._ud(user_dict), **kwargs)
 
     def flush(self):
         """Flush data in internal buffers to disk.

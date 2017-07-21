@@ -7,13 +7,13 @@
 ########################################################################
 
 """
-bcolz: columnar and compressed data containers
+jqbcolz: columnar and compressed data containers
 ==============================================
 
-bcolz provides columnar and compressed data containers.  Column storage
+jqbcolz provides columnar and compressed data containers.  Column storage
 allows for efficiently querying tables with a large number of columns.  It
 also allows for cheap addition and removal of column.  In addition,
-bcolz objects are compressed by default for reducing memory/disk I/O needs.
+jqbcolz objects are compressed by default for reducing memory/disk I/O needs.
 The compression process is carried out internally by Blosc,
 a high-performance compressor that is optimized for binary data.
 
@@ -70,24 +70,24 @@ else:
     tables_here = True
 
 # Print array functions (imported from NumPy)
-from bcolz.arrayprint import (
+from jqbcolz.arrayprint import (
     array2string, set_printoptions, get_printoptions )
 
-from bcolz.carray_ext import (
+from jqbcolz.carray_ext import (
     carray, blosc_version, blosc_compressor_list,
     _blosc_set_nthreads as blosc_set_nthreads,
     _blosc_init, _blosc_destroy)
-from bcolz.ctable import ctable
-from bcolz.toplevel import (
+from jqbcolz.ctable import ctable
+from jqbcolz.toplevel import (
     print_versions, detect_number_of_cores, set_nthreads,
     open, fromiter, arange, zeros, ones, fill,
     iterblocks, cparams, walk)
-from bcolz.chunked_eval import eval
-from bcolz.defaults import defaults, defaults_ctx
-from bcolz.version import version as __version__
+from jqbcolz.chunked_eval import eval
+from jqbcolz.defaults import defaults, defaults_ctx
+from jqbcolz.version import version as __version__
 
 try:
-    from bcolz.tests import test
+    from jqbcolz.tests import test
 except ImportError:
     def test(*args, **kwargs):
         print("Could not import tests.\n"
@@ -103,7 +103,7 @@ def _get_git_description(path_):
     import subprocess
     import os
     import os.path as path
-    from bcolz.py2help import check_output
+    from jqbcolz.py2help import check_output
 
     # make an absolute path if required, for example when running in a clone
     if not path.isabs(path_):
@@ -127,7 +127,7 @@ git_description = _get_git_description(__path__[0])
 _blosc_init()
 ncores = detect_number_of_cores()
 blosc_set_nthreads(ncores)
-# Benchmarks show that using several threads can be an advantage in bcolz
+# Benchmarks show that using several threads can be an advantage in jqbcolz
 blosc_set_nthreads(ncores)
 if numexpr_here:
     numexpr.set_num_threads(ncores)

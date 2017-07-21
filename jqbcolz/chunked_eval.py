@@ -16,12 +16,12 @@ import math
 import warnings
 
 import numpy as np
-import bcolz
-from bcolz.py2help import xrange
+import jqbcolz
+from jqbcolz.py2help import xrange
 
-if bcolz.numexpr_here:
+if jqbcolz.numexpr_here:
     from numexpr.expressions import functions as numexpr_functions
-if bcolz.dask_here:
+if jqbcolz.dask_here:
     import dask.array as da
 
 
@@ -105,8 +105,8 @@ def eval(expression, vm=None, out_flavor=None, user_dict={}, blen=None,
         'python' or 'dask'.  The default is to use 'numexpr' if it is
         installed.
     out_flavor : string
-        The flavor for the `out` object.  It can be 'bcolz' or 'numpy'.
-        If None, the value is get from `bcolz.defaults.out_flavor`.
+        The flavor for the `out` object.  It can be 'jqbcolz' or 'numpy'.
+        If None, the value is get from `jqbcolz.defaults.out_flavor`.
     user_dict : dict
         An user-provided dictionary where the variables in expression
         can be found by name.
@@ -119,26 +119,26 @@ def eval(expression, vm=None, out_flavor=None, user_dict={}, blen=None,
 
     Returns
     -------
-    out : bcolz or numpy object
-        The outcome of the expression.  In case out_flavor='bcolz',
+    out : jqbcolz or numpy object
+        The outcome of the expression.  In case out_flavor='jqbcolz',
         you can adjust the properties of this object by passing any
         additional arguments supported by the carray constructor in
         `kwargs`.
 
     """
     if vm is None:
-        vm = bcolz.defaults.vm
+        vm = jqbcolz.defaults.vm
     if vm not in ("numexpr", "python", "dask"):
         raise ValueError("`vm` must be either 'numexpr', 'python' or 'dask'")
-    if vm == 'numexpr' and not bcolz.numexpr_here:
+    if vm == 'numexpr' and not jqbcolz.numexpr_here:
         raise ImportError("eval(..., vm='numexpr') requires numexpr, "
                           "which is not installed.")
-    if vm == 'dask' and not bcolz.dask_here:
+    if vm == 'dask' and not jqbcolz.dask_here:
         raise ImportError("eval(..., vm='dask') requires dask, "
                           "which is not installed.")
 
     if out_flavor is None:
-        out_flavor = bcolz.defaults.out_flavor
+        out_flavor = jqbcolz.defaults.out_flavor
 
     # Get variables and column names participating in expression
     vars = _getvars(expression, user_dict, vm=vm)
@@ -154,7 +154,7 @@ def eval(expression, vm=None, out_flavor=None, user_dict={}, blen=None,
         if hasattr(var, "dtype"):  # numpy/carray arrays
             if isinstance(var, np.ndarray):  # numpy array
                 typesize += var.dtype.itemsize * np.prod(var.shape[1:])
-            elif isinstance(var, bcolz.carray):  # carray array
+            elif isinstance(var, jqbcolz.carray):  # carray array
                 typesize += var.dtype.itemsize
             else:
                 raise ValueError("only numpy/carray objects supported")
@@ -168,7 +168,7 @@ def eval(expression, vm=None, out_flavor=None, user_dict={}, blen=None,
         if vm in ("python", "dask"):
             return _eval(expression, vars)
         else:
-            return bcolz.numexpr.evaluate(expression, local_dict=vars)
+            return jqbcolz.numexpr.evaluate(expression, local_dict=vars)
 
     return _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
                         **kwargs)
@@ -205,8 +205,8 @@ def _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
         # Build the expression graph
         vars['da'] = da
         da_expr = _eval(expression, vars)
-        if out_flavor in ("bcolz", "carray") and da_expr.shape:
-            result = bcolz.zeros(da_expr.shape, da_expr.dtype, **kwargs)
+        if out_flavor in ("jqbcolz", "carray") and da_expr.shape:
+            result = jqbcolz.zeros(da_expr.shape, da_expr.dtype, **kwargs)
             # Store while compute expression graph
             da.store(da_expr, result)
             return result
@@ -215,7 +215,7 @@ def _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
             return np.array(da_expr)
 
     # Check whether we have a re_evaluate() function in numexpr
-    re_evaluate = bcolz.numexpr_here and hasattr(bcolz.numexpr, "re_evaluate")
+    re_evaluate = jqbcolz.numexpr_here and hasattr(jqbcolz.numexpr, "re_evaluate")
 
     vars_ = {}
     # Get containers for vars
@@ -254,7 +254,7 @@ def _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
         else:
             if i == 0 or not re_evaluate:
                 try:
-                    res_block = bcolz.numexpr.evaluate(expression,
+                    res_block = jqbcolz.numexpr.evaluate(expression,
                                                        local_dict=vars_)
                 except ValueError:
                     # numexpr cannot handle this, so fall back to "python" vm
@@ -266,7 +266,7 @@ def _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
                         expression, vars, vlen, typesize, "python",
                         out_flavor, blen, **kwargs)
             else:
-                res_block = bcolz.numexpr.re_evaluate(local_dict=vars_)
+                res_block = jqbcolz.numexpr.re_evaluate(local_dict=vars_)
 
         if i == 0:
             # Detection of reduction operations
@@ -281,9 +281,9 @@ def _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
                 result = res_block
                 continue
             # Get a decent default for expectedlen
-            if out_flavor in ("bcolz", "carray"):
+            if out_flavor in ("jqbcolz", "carray"):
                 nrows = kwargs.pop('expectedlen', vlen)
-                result = bcolz.carray(res_block, expectedlen=nrows, **kwargs)
+                result = jqbcolz.carray(res_block, expectedlen=nrows, **kwargs)
             else:
                 out_shape = list(res_block.shape)
                 out_shape[0] = vlen
@@ -292,12 +292,12 @@ def _eval_blocks(expression, vars, vlen, typesize, vm, out_flavor, blen,
         else:
             if scalar or dim_reduction:
                 result += res_block
-            elif out_flavor in ("bcolz", "carray"):
+            elif out_flavor in ("jqbcolz", "carray"):
                 result.append(res_block)
             else:
                 result[i:i+blen] = res_block
 
-    if isinstance(result, bcolz.carray):
+    if isinstance(result, jqbcolz.carray):
         result.flush()
     if scalar:
         return result[()]

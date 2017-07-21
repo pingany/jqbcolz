@@ -17,14 +17,13 @@ cdef class chunk:
 
 cdef class chunks(object):
     cdef object _rootdir, _mode
-    cdef object dtype, cparams, lastchunkarr
+    cdef object dtype, cparams
     cdef object chunk_cached
     cdef npy_intp nchunks, nchunk_cached, len
     cdef int _iter_count
     cdef object _mmap
 
     cdef read_chunk(self, nchunk)
-    cdef _save(self, nchunk, chunk_)
     cdef _chunk_file_name(self, nchunk)
 
 cdef class carray:
@@ -38,8 +37,7 @@ cdef class carray:
     cdef npy_intp _nbytes, _cbytes
     cdef npy_intp nhits, limit, skip
     cdef npy_intp expectedlen
-    cdef char *lastchunk
-    cdef object lastchunkarr, where_arr, arr1
+    cdef object where_arr, arr1
     cdef object _cparams, _dflt
     cdef object _dtype
     cdef object _safe
@@ -53,7 +51,6 @@ cdef class carray:
     cdef ndarray blockcache
     cdef char *datacache
 
-    cdef void bool_update(self, boolarr, value)
     cdef int getitem_cache(self, npy_intp pos, char *dest)
     cdef reset_iter_sentinels(self)
     cdef int check_zeros(self, object barr)
